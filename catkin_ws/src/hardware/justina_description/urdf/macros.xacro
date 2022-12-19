@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="cylinder_inertia" params="m r h">
+    <inertia  ixx="${m*(3*r*r+h*h)/12}" ixy="0" ixz="0" iyy="${m*(3*r*r+h*h)/12}" iyz="0" izz="${m*r*r/2}"/>
+  </xacro:macro>
+  
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertia  ixx="${m*(y*y+z*z)/12}" ixy="0" ixz="0" iyy="${m*(x*x+z*z)/12}" iyz="0" izz="${m*(x*x+z*z)/12}"/>
+  </xacro:macro>
+  
+  <xacro:macro name="sphere_inertia" params="m r">
+    <inertia  ixx="${2*m*r*r/5}" ixy="0" ixz="0" iyy="${2*m*r*r/5}" iyz="0" izz="${2*m*r*r/5}"/>
+  </xacro:macro>
+
+  <xacro:macro name="arm_box_link"
+               params="mass size_x size_y size_z origin_x origin_y origin_z color_name color_r color_g color_b color_a">
+    <visual>
+      <origin xyz="${origin_x} ${origin_y} ${origin_z}" rpy="0 0 0"/>
+      <geometry> 
+        <box size="${size_x} ${size_y} ${size_z}"/> 
+      </geometry>
+      <material name="${color_name}"><color rgba="${color_r} ${color_g} ${color_b} ${color_a}"/></material>
+    </visual>
+    <collision>
+      <origin xyz="${origin_x} ${origin_y} ${origin_z}" rpy = "0 0 0"/>
+      <geometry> 
+        <box size="${size_x} ${size_y} ${size_z}"/> 
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="${origin_x} ${origin_y} ${origin_z}" rpy = "0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass*(size_y*size_y+size_z*size_z)/0.120}" ixy="0" ixz="0"
+               iyy="${mass*(size_x*size_x+size_z*size_z)/0.120}" iyz="0"
+               izz="${mass*(size_x*size_x+size_y*size_y)/0.120}"/>
+    </inertial>
+  </xacro:macro>
+</robot>
