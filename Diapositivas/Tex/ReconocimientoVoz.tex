@@ -23,12 +23,12 @@
   \end{itemize}
 \end{frame}
 
-\begin{frame}\frametitle{Ejercicio 10}
+\begin{frame}\frametitle{Ejercicio 15 - Reconocimiento de voz}
   \begin{enumerate}
   \item Verifique el volumne del micrófono
-  \item Inspeccione el archivo \texttt{catkin\_ws/src/pocketsphinx/vocab/gpsr.gram} para ver las frases que se pueden reconocer de acuerdo con la gramática.
+  \item Inspeccione el archivo \texttt{catkin\_ws/src/sprec\_pocketsphinx/vocab/final\_project.gram} para ver las frases que se pueden reconocer de acuerdo con la gramática.
   \item Ejecute el comando \texttt{roslaunch bring\_up speech\_recognition.launch}
-  \item En otra terminal, ejecute el comanto \texttt{rostopic echo /recognized}
+  \item En otra terminal, ejecute el comanto \texttt{rostopic echo /hri/sp\_rec/recognized}
   \item Pruebe el reconocimiento de voz con alguna de las siguientes frases:
     \begin{enumerate}
     \item \texttt{Robot, take the pringles to the table}

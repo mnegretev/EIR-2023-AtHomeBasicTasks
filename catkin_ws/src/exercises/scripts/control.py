@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 #
-# MOBILE ROBOTS - FI-UNAM, 2023-1
-# PRACTICE 5 - PATH FOLLOWING
-#
-# Instructions:
-# Write the code necessary to move the robot along a given path.
-# Consider a differential base. Max linear and angular speeds
-# must be 0.8 and 1.0 respectively.
+# ESCUELA DE INVIERNO DE ROBOTICA 2022-2023
+# SEGUIMIENTO DE RUTAS
 #
 
 import rospy
@@ -105,6 +100,7 @@ def callback_global_goal(msg):
     req = GetPlanRequest(goal=PoseStamped(pose=msg.pose))
     req.start.pose.position = Point(x=robot_x, y=robot_y)
     path = rospy.ServiceProxy('/path_planning/a_star_search', GetPlan)(req).plan
+    #path = rospy.ServiceProxy('/path_planning/smooth_path',SmoothPath)(SmoothPathRequest(path=path)).smooth_path
     print("Following path with " + str(len(path.poses)) + " points...")
     follow_path([[p.pose.position.x, p.pose.position.y] for p in path.poses])
     print("Global goal point reached")
@@ -121,8 +117,8 @@ def get_robot_pose(listener):
 
 def main():
     global pub_cmd_vel, pub_goal_reached, loop, listener
-    print("PRACTICE 05 - " + NAME)
-    rospy.init_node("practice04")
+    print("INITIALIZING PATH TRACKING..." + NAME)
+    rospy.init_node("control")
     rospy.Subscriber('/move_base_simple/goal', PoseStamped, callback_global_goal)
     pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
     pub_goal_reached = rospy.Publisher('/navigation/goal_reached', Bool, queue_size=10)

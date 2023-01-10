@@ -6,80 +6,336 @@
 \end{frame}
 
 \begin{frame}\frametitle{Planeación de movimientos}
-  El problema de la planeación de movimientos comprende cuatro tareas básicas:
+  El problema de la planeación de movimientos comprende cuatro tareas principales:
   \begin{itemize}
-  \item Navegación (encontrar una ruta por el espacio libre de un punto inicial a uno final). Si la ruta está parametrizada con repecto al tiempo, se dice que es una trayectoria.
-  \item Mapeo (construir una representación del ambiente a partir de las lecturas de los sensores y la configuración)
-  \item Localización (determinar la configuración a partir de un mapa y de lecturas de los sensores)
-  \item Barrido (pasar un actuador por todos los puntos de un subespacio)
+  \item Navegación: encontrar un conjunto de puntos $q \in Q_{free}$ que permitan al robot moverse desde una configuración inicial $q_{start}$ a una configuración final $q_{goal}$. 
+  \item Mapeo: construir una representación del ambiente a partir de las lecuras de los sensores y la trayectoria del robot. 
+  \item Localización: determinar la configuración $q$ dado un mapa y lecturas de los sensores. 
+  \item Barrido: pasar un actuador por todos los puntos $q\in Q_b \subset Q$.
   \end{itemize}
-  Comúnmente el mapeo y la localización se realizan al mismo tiempo en el proceso conocido como SLAM (\textit{Simultaneous Localization and Mapping})
+\end{frame}
+
+\begin{frame}\frametitle{Representación del ambiente}
+  Un mapa es cualquier representación del ambiente útil en la toma de decisiones.
+  \begin{itemize}
+  \item Interiores (se suelen representar en 2D)
+    \begin{itemize}
+    \item Celdas de ocupación
+    \item Mapas de líneas
+    \item Mapas topológicos: Diagramas de Voronoi generalizados. 
+    \item Mapas basados en \textit{Landmarks}
+    \end{itemize}
+  \item Exteriores (suelen requerir una representación 3D)
+    \begin{itemize}
+    \item Celdas de elevación
+    \item Celdas de ocupación 3D
+    \item Octomaps
+    \end{itemize}
+  \end{itemize}
 \end{frame}
 
 \begin{frame}\frametitle{Celdas de ocupación}
-  Es una discretización del espacio con una resolución determinada donde a cada celda se le asigna un número $p\in[0,1]$ que indica su nivel de ocupación.
-  \begin{itemize}
-  \item En un enfoque probabilístico, $p$ indica la certeza de que la celda esté ocupada: 0, certeza de que está libre, 1, certeza de que está ocupada, 0.5, no se tiene información.
-  \item En este curso, los niveles de ocupación solo serán 0 o 1.
- Para evitar el manejo de flotantes, el nivel de ocupación suele representarse con un entero en el intervalo [0,100] y un -1 si no hay información. 
-  \end{itemize}
-  \includegraphics[width=0.4\textwidth]{Figures/OccupancyGrid.png}
-  \includegraphics[width=0.4\textwidth]{Figures/OccupancyGridZoom.png}
+  Es un tipo de mapa geométrico. El espacio se discretiza con una resolución determinada y a cada celda se le asigna un número $p\in[0,1]$ que indica su nivel de ocupación. En un enfoque probabilístico este número se puede interpretar como la certeza que se tiene de que una celda esté ocupada.
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{Figures/OccupancyGrid.png}
+    \includegraphics[width=0.4\textwidth]{Figures/UniversumZoom.png}
+    \end{figure}
+  El mapa resultante se representa en memoria mediante una matriz de valores de ocupación. En ROS, los mapas utilizan el mensaje \texttt{nav\_msgs/OccupancyGrid}.
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 1}
-  Ejecute el comando:
-  \begin{lstlisting}
-    roslaunch bring_up path_planning.launch
-  \end{lstlisting}
-  Inspeccione el mapa en el visualizador RViz. Luego abra el archivo:
-  \texttt{catkin\_ws/src/config\_files/maps/appartment.pgm}
-  con cualquier editor de imágenes y modifíquelo.
-  \\Detenga la ejecución y vuelva a correr el comando anterior. 
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 1 - Celdas de ocupación}
+  \begin{enumerate}
+  \item Abra una terminal (Ctrl + Alt + t) y ejecute el comando \texttt{roslaunch bring\_up path\_planning.launch}
+  \item Inspeccione el mapa de celdas de ocupación
+  \item Detenga la ejecución (Ctrl + C)
+  \item Abra el archivo \texttt{catkin\_ws/src/config\_files/maps/appartment.pgm} con cualquier editor de imágenes y realice alguna modificación (puede ser agregar una mancha negra o borrar algún obstáculo).
+  \item Ejecute de nuevo la simulación y observe los cambios
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}\frametitle{Inflado de celdas de ocupación}
+  Aunque las celdas de ocupación representan el espacio donde hay obstáculos y donde no, en realidad, el robot no puede posicionarse en todas las celdas libres, debido a su tamaño, como se observa en la figura:
+  \begin{columns}
+    \begin{column}{0.6\textwidth}
+      \begin{figure}
+        \centering
+        \includegraphics[width=0.45\textwidth]{Figures/InflationExample1.png}
+        \includegraphics[width=0.45\textwidth]{Figures/InflationExample2.png}
+      \end{figure}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{itemize}
+      \item Celdas blancas: espacio libre.
+      \item Celdas negras: espacio con obstáculos.
+        \item Celdas grises: espacio sin obstáculos donde el robot no puede estar debido a su tamaño. 
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{itemize}
+  \item Un mapa de celdas de ocupación debe \textit{inflarse} antes de usarse para planear rutas.
+  \item Esta operación se conoce como \textit{dilatación} y es un operador morfológico como se verá en la sección de conceptos de visión.
+  \item El inflado se usa para planeación de rutas, no para localización.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Inflado de celdas de ocupación}
+  \begin{algorithm}[H]
+    \DontPrintSemicolon
+    \KwData {\;
+      Mapa $M$ de celdas de ocupación\;
+      Radio de inflado $r_i$
+    }
+    \KwResult{Mapa inflado $M_{inf}$}
+    $M_{inf} = $ Copia de $M$\;
+    \ForEach{$i\in [0,\dots,rows)$}
+      {
+        \ForEach{$j\in [0,\dots,cols)$}
+          {
+            //Si la celda está ocupada, marcar como ocupadas las $r_i$ celdas de alrededor.\;
+            \If{$M[i,j] == 100$ }
+               {
+                 \ForEach{$k_1\in [-r_i,\dots,r_i]$}
+                   {
+                     \ForEach{$k_2\in [-r_i,\dots,r_i]$}
+                       {
+                         $M_{inf}[i+k_1, j+k_2] = 100$
+                       }
+                   }
+               }    
+          }
+        }
+        \caption{Algoritmo de inflado de mapas}
+  \end{algorithm}
+\end{frame}
+
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 2 - Inflado de mapas}
+  \begin{enumerate}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up path\_planning.launch}
+  \item Ejecute el algoritmo de inflado de mapas \texttt{rosrun exercises map\_inflation.py}
+  \item Mediante la GUI, modifique el valor de inflación en el campo correspondiente y observe los cambios en el visualizador RViz.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}\frametitle{Mapas de líneas}
+  También son mapas geométricos, pero al almacenar \textit{features} requieren mucho menos memoria. La desventaja es la dificultad para extraer líneas del ambiente y la poca precisión en el empatado. 
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.3\textwidth]{Figures/MapLinesGazebo.png}
+    \includegraphics[width=0.3\textwidth]{Figures/MapLines.png}
+  \end{figure}
+  Algunos métodos para extraer líneas:
+  \begin{itemize}
+  \item \textit{Split and merge}
+  \item Transformada Hough (se verá en la sección de visión computacional)
+  \item RANSAC
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Algoritmo \textit{Split and Merge}}
+  Se utiliza principalmente cuando los datos provienen de un sensor Lidar y por lo tanto, los puntos están en secuencia.
+  \[\]
+  \begin{columns}
+    \begin{column}{0.65\textwidth}
+      \begin{algorithm}[H]
+        \DontPrintSemicolon
+        \KwData {Conjunto de puntos $P$}
+        \KwResult{Conjunto de líneas en forma normal $(\rho, \theta$)}
+        \;
+        Ajustar una recta $L$ al conjunto $P$ por mínimos cuadrados\;
+        Encontrar el punto $p_i$ más lejano a la recta\;
+          \uIf{$d(p_i, L) > umbral$}
+             {
+               Dividir $P$ en dos subconjuntos $P_1$ y $P_2$ usando $p_i$ como pivote\;
+               Aplicar este algoritmo recursivamente para $P_1$ y $P_2$\;
+               Devolver las rectas de ambos subconjuntos
+             }
+             \Else
+                 {
+                   Devolver la recta $L$ en forma normal $(\rho, \theta)$\;
+                 }
+                 \caption{\textit{Split and Merge}}
+        \end{algorithm}
+    \end{column}
+    \begin{column}{0.35\textwidth}
+      \includegraphics[width=\textwidth]{Figures/SplitAndMerge.png}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}\frametitle{Mínimos cuadrados}
+  Este método busca minimizar las distancias entre los puntos $(x_i,y_i)$ y la recta en forma normal dada por los parámetros $(\rho, \theta)$.
+  \[\]
+  Dado un conjunto de puntos $(x_i, y_i)$, la recta $(\rho,\theta)$ que mejor se ajusta se puede obtener con:
+  \begin{eqnarray*}
+    \theta &=& \frac{1}{2}\atantwo\left(-2\sum_i (\bar{x} - x_i)(\bar{y}-y_i)\quad,\quad \sum_i\left[(\bar{y} - y_i)^2 - (\bar{x} - x_i)^2\right]\right)\\
+    \rho &=& \bar{x}\cos\theta + \bar{y}\sin\theta
+  \end{eqnarray*}
+  con
+  \begin{eqnarray*}
+    \bar{x} &=& \frac{1}{n}\sum_i x_i\\
+    \bar{y} &=& \frac{1}{n}\sum_i y_i
+  \end{eqnarray*}
+\end{frame}
+
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 3 - Mapas de líneas}
+  \begin{enumerate}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up path\_planning.launch}
+  \item Ejecute el algoritmo \textit{split and merge} con el comando: \texttt{rosrun exercises split\_and\_merge.py}
+  \item Mediante la GUI, mueva el robot en el espacio libre y observe el desempeño del algoritmo
+  \end{enumerate}
+\end{frame}
+
+
+\begin{frame}\frametitle{Diagrama de Voronoi Generalizado}
+  \begin{itemize}
+  \item A diferencia de los mapas geométricos, donde se busca reflejar la forma exacta del ambiente, los \textbf{mapas topológicos} buscan representar solo las relaciones espaciales de los puntos de interés.
+  \item Los Diagramas de Voronoi dividen el espacio en regiones. Cada región está asociada a un punto llamado semilla, sitio o generador. Una región asociada a una semilla $x$ contiene todos los puntos $p$ tales que $d(x,p)$ es menor o igual que la distancia $d(x^\prime, p)$ a cualquier otra semilla $x^\prime$.
+  \item Un diagrama de Voronoi generalizdo (GVD) considera que las semillas pueden ser objetos con dimensiones y no solo puntos. 
+  \end{itemize}
+  \begin{figure}
+    \centering
+    \includegraphics[height=0.4\textheight]{Figures/GVD.png}
+    \includegraphics[height=0.4\textheight]{Figures/GVDExample.png}
+  \end{figure}
+  \begin{itemize}
+    \item La forma de las regiones depende de la función de distancia que se utilice. 
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{El algoritmo \textit{Brushfire}}
+  \begin{columns}
+    \begin{column}{0.65\textwidth}
+      \begin{itemize}
+      \item Obtener un GVD es aún un problema abierto
+      \item Se simplifica el problema si se asume que el espacio está representado por Celdas de Ocupación
+      \item En este caso el GVD se puede obtener mediante el algoritmo \textit{Brushfire}
+      \item El mapa de rutas mostrado en la figura se forma con las celdas que son máximos locales en el mapa de distancias devuelto por Brushfire, es decir, son las celdas que son fronteras entre las regiones de Voronoi.
+      \item Estas celdas también son aquellas equidistantes a los dos obstáculos más cercanos. 
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.35\textwidth}
+      \includegraphics[width=\textwidth]{Figures/GVDFromGrid.png}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}\frametitle{El algoritmo \textit{Brushfire}}
+  \begin{columns}
+    \begin{column}{0.65\textwidth}
+      \begin{algorithm}[H]
+        \DontPrintSemicolon
+        \KwData {Mapa de celdas de ocupación $M$}
+        \KwResult{Distancias de cada celda al objeto más cercano}
+        \;
+        Fijar $d(p) = 0$ para toda celda $p$ en los obstáculos\;
+        Fijar $d(p) = -1$ para toda celda $p$ en el espacio libre\;
+        Crear una cola $Q$ y agregar toda $p$ en los obstáculos\;
+        \While{$Q$ no esté vacía}
+              {
+                $x = $ desencolar de Q\;
+                \ForAll{celdas $p$ vecinas de $x$}
+                       {
+                         \uIf{$d(p) == -1$}
+                            {
+                              Agregar $p$ a $Q$\;
+                              Fijar $d(p) = x + d(p,x)$\;
+                            }
+                            \Else
+                                {
+                                  Fijar $d(p) = min(d(p), x+d(p,x))$
+                                }
+                       }
+              }
+        \caption{Brushfire}
+        \end{algorithm}
+    \end{column}
+    \begin{column}{0.35\textwidth}
+      \includegraphics[width=\textwidth]{Figures/GVDFromGrid.png}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 4 - Diagrama de Voronoi Generalizado}
+  \begin{enumerate}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up path\_planning.launch}
+  \item Ejecute el inflado de mapas: \texttt{rosrun exercises map\_inflation.py}
+  \item Ejecute el algoritmo de \texttt{brushfire} mediante el comando \texttt{rosrun exercises voronoi.py}
+  \item Observe el diagrama resultante en el visualizador RViz.
+  \end{enumerate}
 \end{frame}
 
 \begin{frame}\frametitle{Planeación de rutas}
-  Dado un espacio de configuraciones $Q$ con espacio libre $Q_{free}\subset Q$ y espacio ocupado $Q_{occ}\subset Q$, la planeación de rutas consiste en contrar un mapeo:
-  \[f: [0,1] \rightarrow Q_{free} \qquad \textrm{con}\qquad f(0) = q_s\qquad f(1)=q_g\]
-  donde $q_s$ y $q_g$ son las configuraciones inicial y meta, respectivamente. Es decir, se debe encontrar una secuencia de puntos del espacio libre que permitan al robot moverse del punto inicial al punto meta sin chocar. Los métodos para planear rutas se pueden agrupar en:
+  La planeación de rutas consiste en encontrar una secuencia de puntos $q\in Q_{free}$ que permitan al robot moverse desde una configuración inicial $q_{start}$ hasta una configuración final $q_{goal}$.
   \begin{itemize}
-  \item Basados en búsqueda en grafos (A*, Dijkstra)
-    \begin{itemize}
-    \item En un mapa de celdas de ocupación, cada celda libre es un nodo del grafo.
-    \item Cada nodo está conectado con las celdas vecinas del espacio libre. 
-    \end{itemize}
-  \item Basados en muestreo (RRT)
-  \item Variacionales
+  \item Una \textbf{ruta} es solo la secuencia de configuraciones para llegar a la meta.
+  \item Cuando la secuencia de configuraciones se expresa en función del tiempo, entonces se tiene una \textbf{trayectoria}. 
+  \end{itemize}
+  En este curso solo vamos a hacer planeación de rutas, no de trayectorias (para navegación).\\
+  Existen varios métodos para planear rutas. La mayoría de ellos se pueden agrupar en:
+  \begin{itemize}
+  \item Métodos basados en muestreo
+  \item Métodos basados en grafos
   \end{itemize}
 \end{frame}
 
-\begin{frame}\frametitle{El algoritmo A*}
-    \begin{algorithm}[H]
+\begin{frame}\frametitle{Métodos basados muestreo}
+  Como su nombre lo indica, consisten en tomar muestras aleatorias del espacio libre. Si es posible llegar en línea recta de la configuración actual al punto muestrado, entonces se agrega a la ruta.
+  Ejemplos:
+  \begin{itemize}
+  \item RRT (Rapidly-exploring Random Trees)
+  \item RRT-Bidireccional
+  \item RRT-Extendido
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{\textit{Rapidly-exploring Random Trees}}
+  Consiste en construir un árbol a partir de muestras aleatorias del espacio libre.
+  \begin{columns}
+    \begin{column}{0.4\textwidth}
+      \begin{algorithm}[H]\small
+        \KwData{Mapa, $q_{s} = $ Punto origen }
+        \KwResult{Espacio explorado}
+        Árbol[0] = $q_{s}$\;
+        $k$ = 0\;
+        \While{$k < k_{max}$ }
+              {
+                $q_{r}$ = ConfiguracionAleaoria()\;
+                Extiende(Árbol, $q_{r}$)\;
+                $k++$\;
+              }
+              \Return Árbol\;
+              \caption{RRT}
+      \end{algorithm}
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      \begin{figure}
+        \centering
+        \includegraphics[width=0.45\textwidth]{Figures/RRTO010.png}
+        \includegraphics[width=0.45\textwidth]{Figures/RRTO0100.png}
+        \includegraphics[width=0.45\textwidth]{Figures/RRTO0300.png}
+      \end{figure}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}\frametitle{Métodos basados en grafos}
+  Estos métodos consideran el ambiente como un grafo. En el caso de celdas de ocupación, cada celda libre es un nodo que está conectado con las celdas vecinas que también estén libres. Los pasos generales de este tipo de algorimos se pueden resumir en:
+  \[\]
+  \begin{algorithm}[H]
     \footnotesize
     \DontPrintSemicolon
     \KwData {Mapa $M$ de celdas de ocupación, configuración inicial $q_{start}$, configuración meta $q_{goal}$}
     \KwResult{Ruta $P=[q_{start},q_1, q_2, \dots , q_{goal}]$}
-    \;
     Obtener los nodos $n_s$ y $n_g$ correspondientes a $q_{start}$ y $q_{goal}$\;
     Lista abierta $OL = \emptyset$ y lista cerrada $CL = \emptyset$\;
-    \ForAll{Nodo $n \in M$}
-    {
-      $g(n) = \infty \qquad f(n) = \infty$\;
-    }
     Agregar $n_s$ a $OL$\;
-    $g(n_s) = 0 \qquad f(n_s) = 0$\;
     Nodo actual $n_c = n_s$\;
     \While{$OL\neq \emptyset$ y $n_c\neq n_g$}
     {
-      Seleccionar de $OL$ el nodo $n_c$ con el menor valor $f$ y agregar $n_c$ a $CL$\;
-      \ForAll{Vecino $n$ de $n_c$}
-      {
-        Calcular los valores $g$ y $h$ para el nodo $n$\;
-        \If{$g < g(n)$}
-        {
-          $g(n) = g\qquad f(n) = g + h \qquad Previo(n) = n_c$
-        }
-      }
+      Seleccionar $n_c$ de $OL$ \textbf{bajo algún criterio}\;
+      Agregar $n_c$ a $CL$\;
+      Expandir $n_c$\;
       Agregar a $OL$ los vecinos de $n_c$ que no estén ya en $OL$ ni en $CL$\;
     }
     \If{$n_c\neq n_g$}{Anunciar Falla}
@@ -87,113 +343,506 @@
   \end{algorithm}
 \end{frame}
 
-\begin{frame}\frametitle{El algoritmo A*}
-  El valor $g$ es una función de costo y el algoritmo A* siempre devolverá la ruta que minimice el costo total del nodo inicial al nodo meta. Las funciones más comunes son:
+\begin{frame}\frametitle{Métodos basados en grafos}
+  El criterio para seleccionar el siguiente nodo a expandir $n_c$ de la lista abierta, determina el tipo de algoritmo:
   \begin{itemize}
-  \item Distancia de Manhattan: $d(p_1, p_2) = |p_{1_x} - p_{2_x}| + |p_{1_y} - p_{2_y}|$
-  \item Distancia Euclidiana: $d(p_1, p_2) = \left( (p_{1_x} - p_{2_x})^2 + (p_{1_y} - p_{2_y})^2 \right)^{1/2}$
+  \item Criterio FIFO: Búsqueda a lo ancho BFS (la lista abierta es una cola)
+  \item Criterio LIFO:  Búsqueda en profundidad DFS (la lista abierta es una pila)
+  \item Menor valor $g$: Dijkstra (la lista abierta es una cola con prioridad)
+  \item Menor valor $f$: A* (la lista abierta es una cola con prioridad)
   \end{itemize}
-  En la función $g$ se puede incluir cualquier criterio para planear una ruta: la más corta, la más rápida, la más segura, etc.\\
-  La heurística $h$ sirve para expandir menos nodos y es una función que debe \textit{subestimar} el costo real de llegar de un nodo $n$ al nodo meta $n_g$. La distancia Euclidiana y la distancia de Manhattan son dos funciones también muy usadas como heurísticas. 
+  Si el costo $g$ para ir de una celda a otra es siempre 1, entonces Dijkstra es equivalente a BFS. \\
+  A* y Dijkstra siempre calculan la misma ruta pero A* lo hace más rápido. 
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 2}
-  Ejecute el comando:
-  \begin{lstlisting}
-    roslaunch bring_up path_planning.launch
-  \end{lstlisting}
-  En otra terminal, ejecute el comando:
-  \begin{lstlisting}
-    rosrun exercises a_star.py
-  \end{lstlisting}
-  Utilizando la GUI calcule una ruta desde la posición del robot hasta el punto (0,0). En el visualizador \texttt{RViz} se mostrará la ruta calculada.\\
+\begin{frame}\frametitle{Mapas de costo}
+  \begin{itemize}
+  \item Los métodos como Dijkstra y A* minimizan una función de costo. Esta función podría ser distancia, tiempo de recorrido, número de vuelta, energía gastada, entre otras.
+  \item En este curso se empleará como costo una combinación de distancia recorrida más peligro de colisión (cercanía a los obstáculos).
+  \item De este modo, las rutas serán un equilibrio entre rutas cortas y rutas seguras.
+  \end{itemize}
   \begin{figure}
     \centering
-    \includegraphics[width=0.35\textwidth]{Figures/Exercise1Gui.png}
-    \includegraphics[width=0.35\textwidth]{Figures/Exercise1Rviz.png}
+    \includegraphics[width=0.5\textwidth]{Figures/AStarComparison.png}
   \end{figure}
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 2}
-  Detenga la ejecución del programa \texttt{a\_star.py}. \\
-    Modifique el archivo \texttt{catkin\_ws/src/exercises/scripts/a\_star.py} para utilizar distancia Euclidiana en lugar de distancia de Manhattan. Modifique las secciones marcadas con el comentario \texttt{\#Ejercicio}. 
-    \lstinputlisting[language=Python,firstnumber=26]{Codes/AStar1.py}
-    \lstinputlisting[language=Python,firstnumber=49]{Codes/AStar2.py}
-    Ejecute nuevamente el comando
-    \begin{lstlisting}
-    rosrun exercises a_star.py
-    \end{lstlisting}
-    Y compare los resultados. 
+\begin{frame}\frametitle{Mapas de costo}
+  \begin{itemize}
+  \item Se utilizará como costo una función de \textit{cercanía}.
+  \item Se calcula de forma similar al algoritmo Brushfire, pero la función decrece conforme nos alejamos de los objetos. 
+  \end{itemize}
+  \begin{columns}
+    \begin{column}{0.6\textwidth}
+      \begin{algorithm}[H]
+        \footnotesize
+        \DontPrintSemicolon
+        \KwData {\;
+          Mapa $M$ de celdas de ocupación\;
+          Radio de costo $r_c$
+        }
+        \KwResult{Mapa de costo $M_c$}
+        \;
+        $M_c = $ Copia de $M$\;
+        \ForEach{$i\in [0,\dots,rows)$}
+          {
+            \ForEach{$j\in [0,\dots,cols)$}
+              {
+                //Si está ocupada, calcular el costo de $r_c$ celdas alrededor.\;
+                \If{$M[i,j] == 100$ }
+                   {
+                     \ForEach{$k_1\in [-r_c,\dots,r_c]$}
+                             {
+                               \ForEach{$k_2\in [-r_c,\dots,r_c]$}
+                                       {
+                                         $C = r_c - max(|k1|,|k2|) + 1$\;
+			                 $M_c[i+k1,j+k2] = max(C, M_c[i+k1,j+k2]$\;
+                                       }
+                             }
+                   }    
+              }
+            }
+            \caption{Mapa de costo}
+      \end{algorithm}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \includegraphics[width=0.95\textwidth]{Figures/CostMap.png}
+    \end{column}
+  \end{columns}
 \end{frame}
 
-\begin{frame}\frametitle{Inflado de mapas}
-  Para evitar que se calculen rutas por espacios por donde el robot en realidad no puede pasar debido a sus dimensiones, los obstáculos del mapa se deben \textit{inflar} cuando menos un número de celdas igual al radio del robot.\\
-  \includegraphics[width=0.45\textwidth]{Figures/Inflation.pdf}
-  \includegraphics[width=0.45\textwidth]{Figures/Inflation.png}
+\begin{frame}\frametitle{El algoritmo A*}
+  \begin{itemize}
+  \item Es un algoritmo completo, es decir, si la ruta existe, seguro la encontrará, y si no existe, lo indicará en tiempo finito.
+  \item Al igual que Dijkstra, A* encuentra una ruta que minimiza una función de costo, es decir, es un algoritmo óptimo.
+  \item Es un algoritmo del tipo de búsqueda informada, es decir, utiliza información sobre el estimado del costo restante para llegar a la meta para priorizar la expansión de ciertos nodos. 
+  \item El nodo a expandir se selecciona de acuerdo con la función:
+    \[f(n) = g(n) + h(n)\]
+    donde
+    \begin{itemize}
+    \item $g(n)$ es el costo acumulado del nodo $n$
+    \item $h(n)$ es una función heurística que \textbf{subestima} el costo de llegar del nodo $n$ al nodo meta $n_g$. 
+    \end{itemize}
+  \item Se tienen los siguientes conjuntos importantes:
+    \begin{itemize}
+    \item Lista abierta: conjunto de todos los nodos en la frontera (visitados pero no conocidos). Es una cola con prioridad donde los elementos son los nodos y la prioridad es el valor $f(n)$.
+    \item Lista cerrada: conjunto de nodos para los cuales se ha calculado una ruta óptima. 
+    \end{itemize}
+    \item A cada nodo se asocia un valor $g(n)$, un valor $f(n)$ y un nodo padre $p(n)$. 
+  \end{itemize}
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 3}
-  Modifique el archivo \texttt{catkin\_ws/src/exercises/scripts/inflation.py} para implementar el algoritmo de inflado de obstáculos:
-  \lstinputlisting[language=Python,firstnumber=19]{Codes/Inflation.py}
-  Ejecute el comando:
-  \begin{lstlisting}
-    roslaunch bring_up path_planning.launch
-  \end{lstlisting}
-  En otra terminal, ejecute el comando:
-  \begin{lstlisting}
-    rosrun exercises a_star.py
-  \end{lstlisting}
-  Y en una tercera terminal ejecute el comando
-  \begin{lstlisting}
-    rosrun exercises inflation.py
-  \end{lstlisting}
+\begin{frame}\frametitle{El algoritmo A*}
+    \begin{algorithm}[H]
+    \footnotesize
+    \DontPrintSemicolon
+    \KwData {Mapa $M$, nodo inicial $n_s$ con configuración $q_{s}$, nodo meta $n_g$ con configuración $q_{g}$}
+    \KwResult{Ruta óptima $P=[q_{s},q_1, q_2, \dots , q_{g}]$}
+    Lista abierta $OL = \emptyset$ y lista cerrada $CL = \emptyset$\;
+    Fijar $f(n_{s}) = 0$, $g(n_{s}) = 0$ y $prev(n_{s}) = NULL$\;
+    Agregar $n_s$ a $OL$ y fijar nodo actual $n_c = n_s$\;
+    \While{$OL\neq \emptyset$ y $n_c\neq n_g$}
+    {
+      Remover de $OL$ el nodo $n_c$ con el menor valor $f$ y agregar $n_c$ a $CL$\;
+      \ForAll{$n$ vecino de $n_c$}
+             {
+               $g = g(n_c) + costo(n_c, n)$\;
+               \If{$g < g(n)$}
+                  {
+                    $g(n) = g$\;
+                    $f(n) = h(n) + g(n)$\;
+                    $prev(n) = n_c$\;
+                  }
+             }
+      Agregar a $OL$ los vecinos de $n_c$ que no estén ya en $OL$ ni en $CL$\;
+    }
+    \If{$n_c\neq n_g$}{Anunciar Falla}
+    \While{$n_c \neq NULL$}
+          {
+            Insertar al inicio de la ruta $P$ la configuración correspondiente al nodo $n_c$\;
+            $n_c = prev(n_c)$
+          }
+    Devolver ruta óptima $P$
+  \end{algorithm}
+\end{frame}
+
+\begin{frame}\frametitle{El algoritmo A*}
+  \begin{itemize}
+  \item La función de costo será el número de celdas más el mapa de costo de la clase anterior.
+  \item Puesto que el mapa está compuesto por celdas de ocupación, los nodos vecinos se pueden obtener usando conectividad 4 o conectividad 8.
+  \item Si se utiliza conectividad 4, la distancia de Manhattan es una buena heurística.
+  \item Si se utiliza conectividad 8, se debe usar la distancia Euclideana.
+  \item La lista abierta se puede implementar con una \textit{Heap}, de este modo, la inserción de los nodos $n$ se puede hacer en tiempo logarítmico y la selección del nodo con menor $f$ se hace en tiempo constante.
+  \item La obtención de las coordenadas $(x,y)$ a partir de los nodos $n$ se puede hacer con:
+    \begin{eqnarray*}
+      x &=& (c)\delta + M_{ox}\\
+      y &=& (r)\delta + M_{oy}
+    \end{eqnarray*}
+  \item La obtención del renglón-columna $(r,c)$ del nodo $n$ a partir de $(x,y)$, se puede obtener con:
+    \begin{eqnarray*}
+      r &=& int((y - M_{oy})/\delta)\\
+      c &=& int((x - M_{ox})/\delta)
+    \end{eqnarray*}
+    donde
+    \begin{itemize}
+    \item $(M_{ox}, M_{oy})$ es el origen del mapa, es decir, las coordenadas cartesianas de la celda (0,0).
+    \item $\delta$ es la resolución, es decir, el tamaño de cada celda.
+    \item La función $int()$ convierte a entero el argumento. 
+    \end{itemize}
+    \item Todos estos valores están en los metadatos del mapa. 
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{El algoritmo A*}
+  Ejemplo: ¿Cuál es la ruta óptima del nodo A al nodo Z?
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.5\textwidth]{Figures/AStarExample.png}
+  \end{figure}
+\end{frame}
+
+\begin{frame}\frametitle{El algoritmo A*}
+  \begin{table}
+    \begin{tabular}{cccc}
+      Paso & Nodo actual & Lista Cerrada & Lista abierta\\
+      \hline
+      0   & NULL & $\emptyset$          & \{A\}      \\
+      1   & A    & \{A\}                & \{B, C\}   \\
+      2   & C    & \{A, C\}             & \{B, D, E\}\\
+      3   & B    & \{A, C, B\}          & \{D, E, F\}\\
+      4   & D    & \{A, C, B, D\}       & \{E, F\}   \\
+      5   & $E$  & \{A, C, B, D, E\}    & \{F, Z\}   \\
+      6   & $Z$  & \{A, C, B, D, E, Z\} & \{F \}     \\
+    \end{tabular}
+  \end{table}
+  \begin{table}
+    \footnotesize
+    \begin{tabular}{ccccccc}
+      A & B & C & D & E & F & Z \\
+      g,f,p & g,f,p & g,f,p & g,f,p & g,f,p & g,f,p & g,f,p\\
+      \hline
+      0,0,NULL & $\infty,\infty$,NULL & $\infty,\infty$,NULL & $\infty,\infty$,NULL & $\infty,\infty$,NULL & $\infty,\infty$,NULL & $\infty,\infty$,NULL\\
+      0,0,NULL & 4, 16, A             & 3, 14, A             & $\infty,\infty$,NULL & $\infty,\infty$,NULL & $\infty,\infty$,NULL & $\infty,\infty$,NULL\\
+      0,0,NULL & 4, 16, A             & 3, 14, A             & 10, 16, C            & 13, 17, C            & $\infty,\infty$,NULL & $\infty,\infty$,NULL\\
+      0,0,NULL & 4, 16, A             & 3, 14, A             & 10, 16, C            & 13, 17, C            & 9, 20, B             & $\infty,\infty$,NULL\\
+      0,0,NULL & 4, 16, A             & 3, 14, A             & 10, 16, C            & \textbf{12, 16, D}   & 9, 20, B             & $\infty,\infty$,NULL\\
+      0,0,NULL & 4, 16, A             & 3, 14, A             & 10, 16, C            &         12, 16, D    & 9, 20, B             & 17, 17, E           \\
+      0,0,NULL & 4, 16, A             & 3, 14, A             & 10, 16, C            &         12, 16, D    & 9, 20, B             & 17, 17, E           \\
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 5 - Planeación de rutas}
+  \begin{enumerate}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up path\_planning.launch}
+  \item Ejecute el algoritmo de inflado de mapas \texttt{rosrun exercises map\_inflation.py}
+  \item Ejecute el cálculo de mapas de costo \texttt{rosrun exercises map\_cost}
+  \item Ejecute el algoritmo A* \texttt{rosrun exercises a\_star.py}
+  \item Mediante la GUI, fije un punto meta y observe la ruta calculada en el visualizador RViz.
+  \item Detenga el nodo de A*
+  \item Abra el archivo \texttt{catkin\_ws/src/exercises/scripts/a\_start.py}, comente la línea 43 y descomente la línea 44.
+  \item Ejecute nuevamente el algoritmo A*
+  \item Fije un punto meta mediante la GUI y observe los cambios en las rutas calculadas.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}\frametitle{Seguimiento de rutas}
+  Hasta el momento ya se tiene una representación del ambiente y una forma de planear rutas. Ahora falta diseñar las leyes de control que hagan que el robot se mueva por la ruta calculada. Este control se hará bajo los siguientes supuestos:
+  \begin{itemize}
+  \item Se conoce la posición del robot (más adelante se abodará el problema de la localización)
+  \item El modelo cinemático es suficiente para modelar el movimiento del robot 
+  \item Las dinámicas no modeladas (parte eléctrica y mecánica de los motores) son lo suficientemente rápidas para poder despreciarse
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Modelo cinemático}
+  Considere la base móvil omnidireccional de la figura con configuración $q=(x,y,\theta)$.
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{Figures/GoalPose.pdf}
+      \end{figure}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      El modelo cinemático está dado por
+      \begin{eqnarray*} 
+        \dot{x} &=& v_x\cos\theta - v_y\sin\theta\label{eq:Kinematic1}\\         
+        \dot{y} &=& v_x\sin\theta + v_y\cos\theta\\ 
+        \dot{\theta} &=& \omega,\label{eq:Kinematic3}
+      \end{eqnarray*}
+    \end{column}
+  \end{columns}
+  \[\]
+  \begin{itemize}
+  \item $(v_x, v_y, \omega)$ se consideran como señales de control
+  \item Corresponden a las velocidades lineales frontal y lateral, y la velocidad angular, con respecto al robot.
+  \item La forma de convertir $(v_x, v_y, \omega)$ a velocidades de cada motor varía dependiendo del número de motores y de su posición. 
+  \end{itemize}
 \end{frame}
 
 \begin{frame}\frametitle{Control de posición}
-  Suponiendo que el robot está en la posición y orientación $(x,y, \theta)$ y que se quiere alcanzar la posición deseada $(x_g, y_g)$, como se muestra en la figura. Las leyes de control
-  \begin{multicols}{2}
-    \includegraphics[width=0.5\textwidth]{Figures/GoalPose.pdf}
-    \[\]
+  \begin{itemize}
+  \item Las leyes de control se diseñarán considerando una base diferencial
+  \item Es mejor mover al robot así, pues lo sensores están generalmente al frente
+  \end{itemize}
+  Si se quiere alcanzar el punto meta $(x_g, y_g)$, las siguientes leyes de control siguientes permiten alcanzar dicho punto meta:
   \begin{eqnarray*}
-    v &=& v_{max} e^{-e_a^2/\alpha}\\
-    \omega &=& \omega_{max}\left(\frac{2}{1 + e^{-e_a/\beta}} - 1\right)
+  v_x    &=& v_{max}e^{-\frac{e_{\theta}^{2}}{\alpha}}\label{eq:Control11}\\
+  \omega &=& \omega_{max}\left(\frac{2}{1+e^{-\frac{e_{\theta}}{\beta}}}-1\right)\label{eq:Control12}
   \end{eqnarray*}
-  \end{multicols}
-  con $e_a = \textrm{atan2}(y_g - y, x_g - x) - \theta$, permiten que el robot alcance la posición deseada. Los parámetros $v_{max}$ y $\omega_{max}$ se deben seleccionar de acuerdo con las capacidades del robot. Las constantes $\alpha$ y $\beta$ permiten controlar qué tan rápido cambian la velocidad lineal y angular del robot. 
+  con
+  \[e_{\theta} = \atantwo\left(y_g - y, x_g - x\right) - \theta\]
+  El error de ángulo $e_\theta$ debe estar siempre en el intervalo $(-\pi, \pi]$. Si la diferencia resulta en un valor fuera de este ángulo, se puede acotar mediante:
+  \[e_\theta \leftarrow \left(e_\theta + \pi\right)\% (2\pi) - \pi\]
+  donde \% denota el operador módulo (residuo). 
 \end{frame}
 
+\begin{frame}\frametitle{Control de posición}
+  \begin{itemize}
+  \item $v_{max}$ y $\omega_{max}$ son las veloicidades linear y angular máximas y dependen de las capacidades físicas del robot.
+  \item $\alpha$ y $\beta$ determinan qué tan rápido varían dichas velocidades cuando cambia el error de ángulo.
+  \item En general, valores pequeños de $\alpha$ y $\beta$ logran que el robot alcance el punto meta casi en línea recta, sin embargo, valores muy pequeños pueden producir oscilaciones.
+  \item Valores grandes de $\alpha$ y $\beta$ producen un movimiento más suave pero puede hacer que el robot describa curvas muy extensas. 
+  \end{itemize}
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.45\textwidth]{Figures/LinearSpeed.eps}
+    \includegraphics[width=0.45\textwidth]{Figures/AngularSpeed.eps}
+  \end{figure}
+\end{frame}
 
 \begin{frame}\frametitle{Seguimiento de rutas}
-  El control de posición se puede utilizar para seguir una ruta si se fija como punto meta cada punto de la ruta, hasta alcanzar el último.
+  \begin{itemize}
+  \item Hasta el momento se ha planteado cómo alcanzar una posición, pero, ¿para una ruta?
+  \item Las rutas son secuencias de puntos. Esta secuencia se prodría parametrizar con respecto al tiempo para tener una trayectoria, sin embargo esto resulta muy complicado debido a la complejidad de las rutas.
+  \item Una solución más sencilla es aplicar el control de posición para cada punto hasta recorrer toda la ruta.
+  \item Las leyes de control solo dependen de $e_\theta$ por lo que el robot no desacelera al acercarse a la meta, provocando fuertes oscilaciones.
+  \item Una forma de resolver este problema es ejecutar la ley de control sólo si la distancia al punto meta 
+
+    \[d=\sqrt{(x_g - x_r)^2 + (y_g - y_r)^2}\] 
+    
+    es mayor que una tolerancia $\epsilon$.
+  \item En este caso, el robot se detendrá abruptamente cuando el error de distancia sea menor que $\epsilon$, lo cual tampoco es deseable
+  \item Una forma fácil de hacer que el robot acelere y desacelere, o en general, obtener un perfil de velocidad, es mediante el uso de una máquina de estados
+    
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Perfil de velocidad}
+  \begin{columns}
+    \begin{column}{0.43\textwidth}
+      \includegraphics[width=\textwidth]{Figures/AFSM.pdf}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      Considere una máquina de estados que calcule $v_{max}$ en el control. Sea $v_{sm}$ la nueva velocidad lineal máxima, de modo que ahora se tiene:
+      \begin{eqnarray*}
+        v      &=& v_{sm}e^{-\frac{e_{\theta}^{2}}{\alpha}}\label{eq:NewControl1}\\
+        \omega &=& \omega_{max}\left(\frac{2}{1+e^{-\frac{e_{\theta}}{\beta}}}-1\right)\label{eq:NewControl2}
+      \end{eqnarray*}
+      con
+      \begin{itemize}
+      \item $r$: Distancia a la meta global
+      \item $\epsilon$: Distancia a la que se considera que el robot alcanzó la meta global
+      \item $r_d$: Distancia a la meta global para desacelerar
+      \item $\Delta v$: Aceleración 
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}\frametitle{Perfil de velocidad}
+  La siguiente figura muestra un ejemplo de una ruta y las velocidades lineales generadas usando solo las leyes de control (izquierda) y usando la máquina de estados para un perfil de velocidad (derecha). 
   \begin{figure}
     \centering
-    \includegraphics[width=0.6\textwidth]{Figures/PathFollowing.pdf}
+    \includegraphics[width=0.45\textwidth]{Figures/SpeedProfilePath.png}
+  \end{figure}
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.45\textwidth]{Figures/SpeedWithoutProfile.eps}
+    \includegraphics[width=0.45\textwidth]{Figures/SpeedWithProfile.eps}
   \end{figure}
 \end{frame}
 
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 6 - Seguimiento de rutas}
+  \begin{enumerate}
+  \item Ejecute la simulación, el inflado de mapas, mapas de costo, el algoritmo A* y el control con el comando \texttt{roslaunch bring\_up navigation.launch}
+  \item En el simulador RViz, con el botón ``2D Nav Goal'', indique una posición meta y observe el comportamiento. 
+  \end{enumerate}
+\end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 4}
-  Ejecute el comando:
-  \begin{lstlisting}
-    roslaunch bring_up path_planning.launch
-  \end{lstlisting}
-  En otra terminal, ejecute el comando:
-  \begin{lstlisting}
-    roslaunch bring_up exercises_path_planning.launch
-  \end{lstlisting}
-  Utilizando RViz, envíe el robot a un punto meta:
+\begin{frame}\frametitle{Evasión de obstáculos}
+  \begin{itemize}
+  \item Hasta el momento se tiene una manera de representar el ambiente, planear una ruta y seguirla
+  \item ¿Qué pasa si en el ambiente hay un obstáculo que no estaba en el mapa?
+  \item Se requiere de una técnica reactiva para evadir obstáculos
+  \item Una posible solución es el uso de campos potenciales artificiales
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Campos potenciales artificiales}
+  El objetivo de esta técnica es diseñar una función $U(q):\mathbb{R}^n\rightarrow \mathbb{R}$ que represente energía potencial.
+  \begin{itemize}
+  \item El gradiente $\nabla U(q) = \left[\frac{\partial U}{\partial q_1},\dots,\frac{\partial U}{\partial q_n}\right]$ es una fuerza.
+  \item Se debe diseñar de modo que tenga un mínimo global en el punto meta y máximos locales en cada obstáculo.
+  \item Si el robot se mueve siempre en sentido contrario al gradiente $\nabla U$ llegará al punto meta siguiendo una ruta alejada de los obstáculos.
+  \item Ha varias formas de diseñar la función $U(q)$, algunas son:
+    \begin{itemize}
+    \item Algoritmo \textit{wavefront}, requiere una discretización del espacio (requiere mapa previo), pero no presenta mínimos locales.
+    \item Campos atractivos y repulsivos, no requieren mapa previo, pero pueden presentar mínimos locales. 
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Potenciales atractivos y repulsivos}
+  \includegraphics[width=\textwidth]{Figures/PotFieldsExample.png}
+  \begin{itemize}
+  \item \textbf{Campos repulsivos:} Por cada obstáculo se diseña una función $U_{rej_i}(q)$ con un máximo local en la posición $q_{o_i}$ del obstáculo.
+  \item \textbf{Campo atractivo:} Se diseña una función $U_{att}(q)$ con un mínimo global en el punto meta $q_g$.
+  \item La función potencial total $U(q)$ se calcula como
+    \[ U(q) = U_{att}(q) + \frac{1}{N}\sum_{i=1}^N U_{rej_i}(q)\]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Fuerzas atractiva y repulsivas}
+  Puesto que el gradiente es un operador lineal, se pueden diseñar directamente las fuerzas atractiva $F_{att}(q) = \nabla U_{att}(q)$ y repulsivas $F_{rej_i}(q) = \nabla U_{rej_i}(q)$, de modo que la fuerza total será:
+  \[ \nabla U(q) = F(q) = F_{att}(q) + \frac{1}{N}\sum_{i=1}^N F_{rej_i}(q)\]
+  Una propuesta de estas fuerzas es:
+  \begin{eqnarray*}
+    \label{eq:attractive}
+    F_{att} &=& \zeta \dfrac{\left(q - q_g\right) }{\Vert q - q_g \Vert},\qquad \zeta > 0\label{eq:PotFieldsAttraction}\\
+    F_{rej} &=& \begin{cases}
+                  \eta\left(\sqrt{\dfrac{1}{d} - \dfrac{1}{d_0}}\right)\dfrac{q_{o_i} - q}{d}
+                  & \quad\textrm{si}\quad d < d_0\\
+                  0 & \quad\textrm{en otro caso}
+                \end{cases}
+  \end{eqnarray*}
+  donde
+  \begin{itemize}
+  \item $q=(x,y)$ es la posición del robot
+  \item $q_g=(x_g, y_g)$ es el punto que se desea alcanzar
+  \item $q_{o_i} = (x_{o_i}, y_{o_i})$ es la posición del $i$-ésimo obstáculo
+  \item $d_0$ es una distancia de influencia. Más allá de $d_0$ los obstáculos no producen efecto alguno
+  \item $\zeta$ y $\eta$, junto con $d_0$, son constantes de sintonización
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Evasión de obstáculos por campos potenciales}
+  \begin{itemize}
+  \item Aunque las ecuaciones anteriores suponen que se conoce la posición de cada obstáculo $q_{o_i}$, en realidad ésta aparece siempre en la diferencia $q_{o_i} - q$, es decir, solo se requiere su posición relativa al robot.
+  \item Los campos potenciales se implementan utilizando el lidar, donde cada lectura se considera un obstáculo. 
+  \end{itemize}
   \begin{figure}
     \centering
-    \includegraphics[width=0.5\textwidth]{Figures/Exercise4Rviz.png}
+    \includegraphics[width=0.4\textwidth]{Figures/PotFieldsLidar.png}
+  \end{figure}
+  Las lecturas del lídar generalmente son pares distancia-ángulo $(d_i,\theta_i)$ expresados con respecto al robot, por lo que, si se conoce la posición del robot $(x_r,y_r,\theta_r)$, la posición de cada obstáculo se puede calcular como:
+  \begin{eqnarray*}
+    x_{oi} &=& x_r + d_i\cos(\theta_i + \theta_r)\\
+    y_{oi} &=& y_r + d_i\sin(\theta_i + \theta_r)\\
+  \end{eqnarray*}
+\end{frame}
+
+\begin{frame}\frametitle{Evasión de obstáculos por campos potenciales}
+  Finalmente, para que el robot alcance el punto de menor potencial, se puede emplear el descenso del gradiente:
+  \[\]
+  \begin{algorithm}[H]
+  \DontPrintSemicolon
+  \KwData{Posición inicial $q_s$, posición meta $q_g$, posiciones $q_{oi}$ de los obstáculos y tolerancia $tol$}
+  \KwResult{Secuencia de puntos $\{q_0,q_1, q_2, \dots\}$ para evadir obstáculos y alcanzar el punto meta}
+  \;
+$q \leftarrow q_s$\;
+\While{$\Vert\nabla U(q)\Vert > tol$}
+{
+  $q \leftarrow q - \epsilon F(q)$\;
+  $[v,\omega] \leftarrow $ leyes de control con $q$ como posición deseada\;
+}
+  \caption{Descenso del gradiente para mover al robot a través de un campo potencial.}
+  \label{alg:PotFields}
+\end{algorithm}
+\end{frame}
+
+\begin{frame}\frametitle{Evasión de obstáculos por campos potenciales}
+  Ejemplo de movimiento:
+  \begin{figure}
+    \centering
+    \includegraphics[height=0.85\textheight]{Figures/PotFieldsExecution.png}
   \end{figure}
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 4}
-  Detenga la ejecución de los ejercicios. Abra el archivo \texttt{catkin\_ws/src/exercises/scripts/control.py} y modifique las constantes $v_{max}$, $\omega_{max}$, $\alpha$ y $\beta$.
-  \lstinputlisting[language=Python,firstnumber=23]{Codes/Control.py}
-  Vuelva a ejecutar el comando
-  \begin{lstlisting}
-    roslaunch bring_up exercises_path_planning.launch
-  \end{lstlisting}
-  Y compare el comportamiento del robot.
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 7 - Evasión de obstáculos}
+  \begin{enumerate}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up obstacle\_avoidance.launch}
+  \item Ejecute la evasión por campos potenciales mediante el comando\\ \texttt{rosrun exercises pot\_fields.py}
+  \item Con la opción \textit{2D Nav Goal} del visualizador \textit{RViz}, selecccione un punto meta en el mapa.
+  \item Observe el comportamiento.
+  \item Detenga la ejecución de los campos potenciales. 
+  \item Abra el archivo \texttt{catkin\_ws/src/exercises/scripts/pot\_fields.py} y modifique las constantes de atracción (línea 66), repulsión (línea 86) y distancia de influencia (línea 87)
+  \item Ejecute nuevamente los campos potenciales y observe el cambio en el comportamiento.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}\frametitle{Localización}
+  El problema de la localización consiste en determinar la configuración $q$ del robot dada un mapa y un conjunto de lecturas de los sensores.
+  \begin{itemize}
+  \item La localización se podría lograr simplemente integrando los comandos de velocidad del robot.
+  \item Si se conoce perfectamente la configuración inicial y el robot ejecuta perfectamente los comandos de movimiento, entonces la simple integración de la velocidad de los motores sería suficiente.
+  \item Esto por supuesto no es posible. Se tiene incertidumbre tanto en la estimación inicial de la posición como en la ejecución de cada movimiento.
+  \item Es decir, el robot pierde información sobre su posición en cada movimiento. 
+  \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Localización}
+  Existen principalmente dos tipos:
+\[\]
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \textbf{Localización local: }
+      \begin{itemize}
+      \item Requiere una estimación inicial \textit{cercana} a la posición real del robot, de otro modo, no converge.
+      \item Suele ser menos costosa computacionalmente.
+      \item Un método común es el Filtro de Kalman Extendido.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Localización global:}
+      \begin{itemize}
+      \item La estimación inicial puede ser cualquiera.
+      \item Suele ser computacionalmente costosa.
+      \item Un método común son los Filtros de Partículas. 
+      \end{itemize}
+      \[\]
+      \[\]
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}\frametitle{Localización probabilística}
+  \begin{itemize}
+  \item En la localización probabilística, en lugar de llevar una sola hipótesis sobre la posición del robot, se mantiene una \textit{distribución de probabilidad} sobre todo el espacio de hipótesis.
+  \item El enfoque probabilístico permite manejar las incertidumbres inherentes al movimiento y al sensado.
+  \item El reto es obtener una distribución de densidad de probabilidad (PDF) sobre todas las posibles posiciones del robot.
+  \item En general, los métodos probabilísticos de estimación se componen de dos pasos:
+    \begin{enumerate}
+    \item \textbf{Predicción:} Se modifica la PDF de la posición del robot con base en los comandos y el modelo de movimiento.
+    \item \textbf{Actualización:} Se corrige la predicción mezclando la información de PDF predicha con información de los sensores. Se obtiene una PDF de la posición y se repite el proceso. 
+    \end{enumerate}
+  \end{itemize}
+  
+\end{frame}
+
+\begin{frame}\frametitle{Filtros de Partículas}
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.6\textwidth]{Figures/ParticleFilter1.pdf}
+  \end{figure}
+\end{frame}
+
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 8 - Filtros de partículas}
+  \begin{enumerate}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up localization.launch}
+  \item Ejecute la localización por filtros de partículas mediante el comando \texttt{rosrun exercises particle\_filters}
+  \item Con la GUI mueva el robot un poco hacia adelante. 
+  \item Observe el comportamiento de las partículas conforme se mueve el robot. 
+  \end{enumerate}
 \end{frame}

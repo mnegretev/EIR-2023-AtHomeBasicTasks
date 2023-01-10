@@ -1,8 +1,6 @@
 <launch>
   <param name="/path_planning/inflation_radius" value="0.3"/>
   <param name="/path_planning/cost_radius" value="0.3"/>
-  <param name="/path_planning/smoothing_alpha" value="0.3"/>
-  <param name="/path_planning/smoothing_beta"  value="0.3"/>
   <include file="$(find bring_up)/launch/justina_hardware.launch">
     <arg name="initial_x" value="7.64"/>
     <arg name="initial_y" value="5.40"/>
@@ -35,11 +33,10 @@
   <node name="audio_sender" pkg="sprec_pocketsphinx" type="send_audio.py" output="screen"/>
   <node name="sound_play" pkg="sound_play" type="soundplay_node.py" output="screen"/>
 
-  <node name="practice02"  pkg="students" type="practice02.py"  output="screen"/>
-  <node name="practice03a" pkg="students" type="practice03a.py" output="screen"/>
-  <node name="practice03b" pkg="students" type="practice03b.py" output="screen"/>
-  <node name="practice04"  pkg="students" type="practice04.py"  output="screen"/>
-  <node name="practice05"  pkg="students" type="practice05.py"  output="screen"/>
-  <node name="practice08"  pkg="students" type="practice08.py"  output="screen"/>
-  <node name="practice09"  pkg="students" type="practice09.py"  output="screen"/>
+  <node name="map_inflation"  pkg="exercises" type="map_inflation.py"  output="screen"/>
+  <node name="map_cost"       pkg="exercises" type="map_cost.py" output="screen"/>
+  <node name="a_star"         pkg="exercises" type="a_star.py" output="screen"/>
+  <node name="control"        pkg="exercises" type="control.py"  output="screen"/>
+  <node name="color_segment"  pkg="exercises" type="color_segmentation.py"  output="screen"/>
+  <node name="inverse_kinem"  pkg="exercises" type="inverse_kinematics.py"  output="screen"/>
 </launch>

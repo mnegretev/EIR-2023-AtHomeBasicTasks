@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 #
-# EIR-2023
-# EXERCISE 3 - COST MAPS
-#
-# Instructions:
-# Write the code necesary to get a cost map given
-# an occupancy grid map and a cost radius.
+# ESCUELA DE INVIERNO DE ROBOTICA 2022-2023
+# MAPAS DE COSTO
 #
 
 import rospy

@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 #
-# MOBILE ROBOTS - FI-UNAM, 2023-1
-# PRACTICE 3b - PATH PLANNING BY A-STAR
+# ESCUELA DE INVIERNO DE ROBOTICA 2022-2023
+# PLANEACION DE RUTAS CON A*
 #
-# Instructions:
-# Write the code necessary to plan a path using an
-# occupancy grid and the A* algorithm
-# MODIFY ONLY THE SECTIONS MARKED WITH THE 'TODO' COMMENT
 #
 
 import numpy
@@ -40,8 +36,8 @@ def a_star(start_r, start_c, goal_r, goal_c, grid_map, cost_map):
     # TODO:
     # Modify the list of adjacent node-offsets to use 8-connectiviy instead of 4-connectiviy
     #
-    #adjacent_idx   = [[1,0],[0,1],[-1,0],[0,-1]]
-    adjacent_idx      = [[1,0],[0,1],[-1,0],[0,-1], [1,1], [-1,1], [-1,-1],[1,-1]]
+    adjacent_idx   = [[1,0],[0,1],[-1,0],[0,-1]]
+    #adjacent_idx      = [[1,0],[0,1],[-1,0],[0,-1], [1,1], [-1,1], [-1,-1],[1,-1]]
     #
 
     open_list = [] 

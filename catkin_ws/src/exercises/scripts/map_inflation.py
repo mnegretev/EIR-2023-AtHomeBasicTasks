@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 #
-# MOBILE ROBOTS - FI-UNAM, 2022-2
-# PRACTICE 02 - MAPS 
-#
-# Instructions:
-# Complete the code necessary to inflate the obstacles given an occupancy grid map and
-# a number of cells to inflate. 
+# ESCUELA DE INVIERNO DE ROBOTICA 2022-2023
+# INFLADO DE MAPAS
 #
 
 import rospy

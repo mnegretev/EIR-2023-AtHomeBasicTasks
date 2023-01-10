@@ -72,14 +72,14 @@
   \lstinputlisting[language=XML]{Codes/XacroExample.xml}
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 6}
-  Abra el archivo \texttt{catkin\_ws/src/hardware/justina\_description/urdf/justina\_base.xacro} y vaya a la línea 228:
-  \lstinputlisting[language=XML,firstnumber=227]{Codes/JustinaXacro.xml}
-  Modifique el atributo \texttt{xyz} y aumente 1 m en la coordenada en z. Después ejecute el comando:
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 10 - Formato Xacro}
+  Abra el archivo \texttt{catkin\_ws/src/hardware/justina\_description/urdf/justina.xacro} y modifique la línea 17 de acuerdo con lo siguiente:
+  \lstinputlisting[language=XML,firstnumber=16]{Codes/JustinaXacro.xml}
+  Ejecute la simulación:
   \begin{lstlisting}
     roslaunch bring_up path_planning.launch
   \end{lstlisting}
-  Detenga la simulación. Ahora modifique el atributo \texttt{rpy}, cambie los valores a ``1.5708 0 0'' y ejecute de nuevo la simulación. 
+  Detenga la simulación. Regrese las variables a sus valores originales.
 \end{frame}
 
 \begin{frame}\frametitle{La cinemática directa}
@@ -96,6 +96,19 @@
   Donde $R_{ab}$ representa la rotación del sistema $b$ respecto al sistema $a$ y $(dx_{ab}, dy_{ab}, dz_{ab})$ es la traslación del sistema $b$ respecto al sistema $a$.\\
   La rotación $R_{ab}$ está definida en el URDF por el atributo ``rpy'' de la sub etiqueta \texttt{origin} de la etiqueta \texttt{joint} y por la posición de la articulación. La traslación $(dx_{ab}, dy_{ab}, dz_{ab})$ está definida por el atributo ``xyz''. 
 \end{frame}
+
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 11 - Cinemática directa}
+  \begin{itemize}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up inverse\_kinematics.launch}
+  \item Ejecute el cálculo de la cinemática: \texttt{rosrun exercises inverse\_kinematics.py}
+  \end{itemize}
+  En la GUI, mueva las articulaciones con los controles del bloque \textit{Articular} y observe los cambios en la etiqueta \textit{Current} del bloque \textit{Cartesian}
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.6\textwidth]{Figures/ForwardKinematics.png}
+  \end{figure}
+\end{frame}
+
 
 \begin{frame}\frametitle{La cinemática inversa}
   La cinemática inversa consiste en determinar las posiciones que debe tener cada articulación para que el efector final tenga la posición y orientación deseadas.
@@ -174,21 +187,17 @@
   \end{itemize}
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 7}
-  Abra el archivo \texttt{catkin\_ws/src/exercises/scripts/inverse\_kinematics.py} e inspecciones los segmentos de código marcados con el comentario \texttt{\#Ejercicio} para comparar con los algoritmos para el cálculo de las cinemáticas directa e inversa y del Jacobiano.\\
-  En una terminal ejecute el comando:
-  \begin{lstlisting}
-    roslaunch bring_up manipulation.launch
-  \end{lstlisting}
-  Y en otra ejecute el comando:
-  \begin{lstlisting}
-    rosrun exercises inverse_kinematics.py
-  \end{lstlisting}
-  Utilizando la GUI, calcule la cinemática inversa para que el brazo izquierdo alcance la posición $(x,y,z,roll, pitch, yaw) = (0.2, 0.1, -0.3, 3.0, -1.57, -3.0)$ y el brazo derecho, la posición $(x,y,z,roll, pitch, yaw) = (0.2, -0.1, -0.3, 3.0, -1.57, -3.0)$:
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 12 - Cinemática inversa}
+  \begin{itemize}
+  \item Ejecute la simulación con el comando \texttt{roslaunch bring\_up inverse\_kinematics.launch}
+  \item Ejecute el cálculo de la cinemática inversa: \texttt{rosrun exercises inverse\_kinematics.py}
+  \end{itemize}
+  En la GUI, en el campo \textit{goal} del bloque \textit{articular}, escriba ``prepare'' (en cualquiera de los dos brazos):
   \begin{figure}
     \centering
-    \includegraphics[width=0.4\textwidth]{Figures/Exercise7Gui.png}
+    \includegraphics[width=0.6\textwidth]{Figures/InverseKinematics.png}
   \end{figure}
+  Utilice los controles del bloque \textit{cartesian} para mover el manipulador.
 \end{frame}
 
 \begin{frame}\frametitle{El control PID}
@@ -223,15 +232,13 @@
   \end{itemize}
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 8}
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 13 - Control PID}
   Ejecute el comando:
   \begin{lstlisting}
-    roslaunch bring_up manipulation.launch
+    roslaunch bring_up inverse_kinematics.launch
   \end{lstlisting}
-  Utilizando la GUI, mueva las articulaciones de los manipuladores a alguna posición diferente de cero y observe el comportamiento.
-  \begin{figure}
-    \centering
-    \includegraphics[width=0.3\textwidth]{Figures/Exercise8Gui.png}
-  \end{figure}
-  Abra el archivo \texttt{src/config\_files/ros\_control/justina\_controllers.yaml} y modifique las ganancias de los diferentes controladores. Detenga la simulación y ejecútela de nuevo. Compare el comportamiento. 
+  \begin{itemize}
+  \item Utilizando la GUI, mueva las articulaciones de los manipuladores a alguna posición diferente de cero y observe el comportamiento.
+  \item Abra el archivo \texttt{src/config\_files/ros\_control/justina\_controllers.yaml} y modifique las ganancias de los diferentes controladores. Detenga la simulación y ejecútela de nuevo. Compare el comportamiento.
+  \end{itemize}
 \end{frame}

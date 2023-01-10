@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 #
-# MOBILE ROBOTS - FI-UNAM, 2022-2
-# SPLIT AND MERGE ALGORITHM
-#
-# Instructions:
-# Write a program to implement the split and merge algorithm for finding
-# lines given a set of points.
+# ESCUELA DE INVIERNO DE ROBOTICA 2022-2023
+# ALGORITMO SPLIT AND MERGE
 #
 
 import rospy

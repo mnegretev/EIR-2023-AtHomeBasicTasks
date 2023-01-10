@@ -56,12 +56,13 @@
 \beamertemplatenavigationsymbolsempty
 \setbeamertemplate{frametitle}{
   \leavevmode
-  \hbox{\begin{beamercolorbox}[wd=0.6\paperwidth,left]{frametitle}
+  \hbox{\begin{beamercolorbox}[wd=0.85\paperwidth,left]{frametitle}
     \usebeamerfont{frametitle}\insertframetitle
   \end{beamercolorbox}
-  \begin{beamercolorbox}[wd=0.4\paperwidth,center]{frametitle}
-    \usebeamerfont{frametitle}\small{\thesection . \insertsectionhead}
-  \end{beamercolorbox}  } }
+%  \begin{beamercolorbox}[wd=0.25\paperwidth,center]{frametitle}
+%    \usebeamerfont{frametitle}\hfill\hspace*{5ex}\footnotesize{\insertsubsection}
+%  \end{beamercolorbox}
+}}
 \setbeamertemplate{footline}{
   \leavevmode%
   \hbox{%
@@ -75,6 +76,11 @@
       \usebeamerfont{author in head/foot}\insertshortdate{} \hspace*{2em}\scriptsize{\insertframenumber{}}\hspace*{1ex}
     \end{beamercolorbox}
   }
+}
+\setbeamersize
+{
+    text margin left=0.25cm,
+    text margin right=0.25cm
 }
 
 \begin{document}

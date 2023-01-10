@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 #
-# MOBILE ROBOTS - FI-UNAM, 2022-2
-# GENERALIZED VORONOI DIAGRAMS
-#
-# Instructions:
-# Implement the Brushfire algorithm to get the set of cells
-# equidistant to the two nearest obstacles, given an occupancy grid map. 
+# ESCUELA DE INVIERNO DE ROBOTICA 2022-2023
+# DIAGRAMAS DE VORONOI GENERALIZADOS
 #
 
 import rospy

@@ -57,28 +57,19 @@ Una imagen (en escala de grises) es una función $I(x,y)$ donde $x,y$ son variab
   \end{enumerate}
 \end{frame}
 
-\begin{frame}[containsverbatim]\frametitle{Ejercicio 5}
-  Modifique el archivo \texttt{catkin\_ws/src/exercises/scripts/color\_segmentation.py} para fijar los límites de color, superior e inferior, dependiendo del objeto que se desea segmentar. 
-  \lstinputlisting[language=Python,firstnumber=17]{Codes/ColorSegmentation.py}
-  Ejecute el comando:
+\begin{frame}[containsverbatim]\frametitle{Ejercicio 9 - Segmentación por color}
+  Ejecute la simulación con el comando:
   \begin{lstlisting}
-    roslaunch bring_up path_planning.launch
+    roslaunch bring_up color_segmentation.launch
   \end{lstlisting}
-  Y en otra terminal ejecute el comando
+  Y en otra terminal ejecute la segmentación por color:
   \begin{lstlisting}
     rosrun exercises color_segmentation.py
   \end{lstlisting}
-\end{frame}
-
-\begin{frame}\frametitle{Ejercicio 5}
   Utilizando la GUI, baje la cabeza del robot hasta que los objetos del escritorio estén en el campo visual:
   \begin{figure}
     \centering
     \includegraphics[width=0.35\textwidth]{Figures/Exercise5Gui1.png}
   \end{figure}
-  Utilizando la GUI, ejecute la segmentación por color. Los objetos que se pueden segmentar son ``pringles'' o ``drink''.
-  \begin{figure}
-    \centering
-    \includegraphics[width=0.35\textwidth]{Figures/Exercise5Gui2.png}
-  \end{figure}
+  En la pestaña \textit{Simple Tasks}, teclee las palabras ``pringles'' o ``drink'' en el campo \textit{Find Object}. Observe el resultado en el visualizador RViz. 
 \end{frame}
